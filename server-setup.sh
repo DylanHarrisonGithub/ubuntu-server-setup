@@ -105,8 +105,15 @@ echo "PostgreSQL database '$dbname' and user '$dbusername' with all privileges s
 read -p "Would you like to allow remote connections for $dbusername? (yes/no): " response
 if [[ "$response" == "yes" ]]; then
 
-    pg_hba_conf="/etc/postgresql/<version>/main/pg_hba.conf"
-    postgresql_conf="/etc/postgresql/<version>/main/postgresql.conf"
+
+    # Define the directory path
+    pgdirectory="/etc/postgresql"
+
+    # Use find to list directories (excluding '.' and '..'), limit to first result, and extract directory name
+    first_directory=$(find "$pgdirectory" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | head -n 1)
+
+    pg_hba_conf="/etc/postgresql/$first_directory/main/pg_hba.conf"
+    postgresql_conf="/etc/postgresql/$fisrt_directory/main/postgresql.conf"
 
     echo "Modifying pg_hba.conf..."
     # Append new rule to allow remote connection for $dbusername
@@ -163,17 +170,10 @@ echo "${appname}_MAX_HD_SIZE_GB=\"$hd_size\"" | sudo tee -a /etc/environment
 
 # app github repo
 read -p "Enter your application's github repo address: " repo_url
-
-if [[ "$repo_url" == "https://"* ]]; then     #sanitize url input
-    repo_url="${repo_url#"https://"}"
-else
-if [[ "$repo_url" == "http://"* ]]; then
-    repo_url="${repo_url#"http://"}"
-else
-if [[ "$repo_url" == "www."* ]]; then
-    repo_url="${repo_url#"www."}"
-else
-
+# sanitize input
+repo_url=${repo_url#https://}
+repo_url=${repo_url#http://}
+repo_url=${repo_url#www.}
 echo "${appname}_REPO_URL=\"$repo_url\"" | sudo tee -a /etc/environment
 
 read -p "Enter your application's github repo private access token: " repo_pat
@@ -222,16 +222,9 @@ echo "################ NGINX & CERTBOT SETUP.. ################"
 
 read -p "Enter your domain name [default: mydomain.com]: " domain
 domain=${domain:-"mydomain.com"}
-
-if [[ "$domain" == "https://"* ]]; then     #sanitize url input
-    domain="${domain#"https://"}"
-else
-if [[ "$domain" == "http://"* ]]; then
-    domain="${domain#"http://"}"
-else
-if [[ "$domain" == "www."* ]]; then
-    domain="${domain#"www."}"
-else
+domain=${domain#https://}
+domain=${domain#http://}
+domain=${domain#www.}
 
 # Install nginx
 echo
