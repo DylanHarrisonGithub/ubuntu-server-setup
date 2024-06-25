@@ -49,6 +49,7 @@ echo
 echo "Initializing server and updating server.."
 sudo apt update
 sudo apt upgrade -y
+sudo snap refresh
 
 
 
@@ -102,26 +103,50 @@ sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $dbname TO $dbusernam
 
 echo "PostgreSQL database '$dbname' and user '$dbusername' with all privileges successfully created."
 
-read -p "Would you like to allow remote connections for $dbusername? (yes/no): " response
+read -p "Would you like to allow remote connections for $dbusername? on port 5432 (yes/no): " response
 if [[ "$response" == "yes" ]]; then
 
+    # Define the PostgreSQL configuration file names
+    PG_HBA_CONF="pg_hba.conf"
+    POSTGRES_CONF="postgresql.conf"
 
-    # Define the directory path
-    pgdirectory="/etc/postgresql"
+    # Variable to store the found directory
+    FOUND_DIR=""
 
-    # Use find to list directories (excluding '.' and '..'), limit to first result, and extract directory name
-    first_directory=$(find "$pgdirectory" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | head -n 1)
+    # Check each directory under /etc/postgresql
+    for conf_dir in /etc/postgresql/*; do
+        if [ -d "$conf_dir" ]; then
+            if [ -f "$conf_dir/$PG_HBA_CONF" ] && [ -f "$conf_dir/$POSTGRES_CONF" ]; then
+                echo "Found configuration files in directory: $conf_dir"
+                FOUND_DIR="$conf_dir"
+                break  # Exit the loop once the directory is found
+            fi
+        fi
+    done
 
-    pg_hba_conf="/etc/postgresql/$first_directory/main/pg_hba.conf"
-    postgresql_conf="/etc/postgresql/$fisrt_directory/main/postgresql.conf"
+    # Check if a directory was found
+    if [ -n "$FOUND_DIR" ]; then
 
-    echo "Modifying pg_hba.conf..."
-    # Append new rule to allow remote connection for $dbusername
-    echo "host    $database   $dbusername   $remote_ip   md5" >> $pg_hba_conf
+        pg_hba_conf="/etc/postgresql/$FOUND_DIR/main/pg_hba.conf"
+        postgresql_conf="/etc/postgresql/$FOUND_DIR/main/postgresql.conf"
 
-       echo "Modifying postgresql.conf..."
-    # Uncomment or set listen_addresses to '*' to listen on all addresses
-    sed -i "s/#listen_addresses = 'localhost'/listen_addresses = '*'/" $postgresql_conf
+        echo "Modifying pg_hba.conf..."
+        # Append new rule to allow remote connection for $dbusername
+        echo "host    $database   $dbusername   $remote_ip   md5" >> $pg_hba_conf
+
+        echo "Modifying postgresql.conf..."
+        # Uncomment or set listen_addresses to '*' to listen on all addresses
+        sed -i "s/#listen_addresses = 'localhost'/listen_addresses = '*'/" $postgresql_conf
+
+        echo "Postgres successfully modified to allow remote connections"
+        echo "Please ensure that port 5432 is open on your server firewall"
+
+    else
+        echo "Error: PostgreSQL configuration directory not found under /etc/postgresql"
+        echo "PostgreSQL could not be configured to allow remote access"
+        exit 1
+    fi
+
 
 fi
 
