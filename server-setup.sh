@@ -48,7 +48,7 @@ echo "################ UBUNTU SETUP.. ################"
 echo
 echo "Initializing server and updating server.."
 sudo apt update
-sudo apt upgrade -y
+sudo apt upgrade -y          # is this causing problems?
 sudo snap refresh
 
 
@@ -59,10 +59,12 @@ echo
 echo
 echo "################ NODE AND NPM SETUP.. ################"
 
-# node latest stable and npm
+# installing node and npm
 echo
 echo "Installing latest stable version of node and npm"
-sudo snap install node --classic
+# sudo snap install node --classic    # BROKEN
+curl -sL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+sudo apt-get install -y nodejs
 
 
 
@@ -106,17 +108,14 @@ echo "PostgreSQL database '$dbname' and user '$dbusername' with all privileges s
 read -p "Would you like to allow remote connections for $dbusername? on port 5432 (yes/no): " response
 if [[ "$response" == "yes" ]]; then
 
-    # Define the PostgreSQL configuration file names
-    PG_HBA_CONF="pg_hba.conf"
-    POSTGRES_CONF="postgresql.conf"
-
     # Variable to store the found directory
     FOUND_DIR=""
 
     # Check each directory under /etc/postgresql
     for conf_dir in /etc/postgresql/*; do
         if [ -d "$conf_dir" ]; then
-            if [ -f "$conf_dir/$PG_HBA_CONF" ] && [ -f "$conf_dir/$POSTGRES_CONF" ]; then
+            echo "directory $conf_dir found in /etc/postgresql"
+            if [ -f "$conf_dir/main/pg_hba.conf" ] && [ -f "$conf_dir/main/postgresql.conf" ]; then
                 echo "Found configuration files in directory: $conf_dir"
                 FOUND_DIR="$conf_dir"
                 break  # Exit the loop once the directory is found
@@ -127,12 +126,12 @@ if [[ "$response" == "yes" ]]; then
     # Check if a directory was found
     if [ -n "$FOUND_DIR" ]; then
 
-        pg_hba_conf="/etc/postgresql/$FOUND_DIR/main/pg_hba.conf"
-        postgresql_conf="/etc/postgresql/$FOUND_DIR/main/postgresql.conf"
+        pg_hba_conf="$FOUND_DIR/main/pg_hba.conf"
+        postgresql_conf="$FOUND_DIR/main/postgresql.conf"
 
         echo "Modifying pg_hba.conf..."
         # Append new rule to allow remote connection for $dbusername
-        echo "host    $database   $dbusername   $remote_ip   md5" >> $pg_hba_conf
+        echo "host    $database   $dbusername   0.0.0.0/0   md5" >> $pg_hba_conf
 
         echo "Modifying postgresql.conf..."
         # Uncomment or set listen_addresses to '*' to listen on all addresses
@@ -144,7 +143,6 @@ if [[ "$response" == "yes" ]]; then
     else
         echo "Error: PostgreSQL configuration directory not found under /etc/postgresql"
         echo "PostgreSQL could not be configured to allow remote access"
-        exit 1
     fi
 
 
