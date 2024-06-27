@@ -39,6 +39,85 @@ fi
 
 
 
+################################################################ ENVIRONMENT VARIABLES ################################################################
+echo
+echo
+echo "################ ENVIRONMENT VARIABLE SETUP.. ################"
+
+# app name
+read -p "Enter your app name [default: MYAPP]: " appname
+appname=${appname:-"MYAPP"}
+appname="${appname^^}"             # cast to upper case
+
+
+# port
+read -p "Enter your app port [default: 3000]: " portnumber
+portnumber=${portnumber:-3000}
+echo "${appname}_PORT=\"$portnumber\"" | sudo tee -a /etc/environment
+
+
+# domain
+read -p "Enter your domain name [default: mydomain.com]: " domain
+domain=${domain:-"mydomain.com"}
+domain=${domain#https://}
+domain=${domain#http://}
+domain=${domain#www.}
+
+# app server secret
+LENGTH=64
+random_string=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c $LENGTH ; echo '')
+echo "${appname}_SERVER_SECRET=\"$random_string\"" | sudo tee -a /etc/environment
+
+
+# db dbname dbusername dbpassword
+LENGTH_DB_PWD=16
+dbpassword=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c $LENGTH_DB_PWD ; echo '')
+dbname="${appname,,}db"
+dbusername="${appname,,}"
+
+
+# db allow remote connections
+read -p "Would you like to allow remote database connections on port 5432 (yes/no): " dballowremote
+
+
+# app database connection string DATABASE_URL=postgres://{user}:{password}@{hostname or localhost}:{port}/{database-name}
+echo "${appname}_DATABASE_URL=\"postgres://$dbusername:$dbpassword@localhost:5432/$dbname\"" | sudo tee -a /etc/environment
+
+
+# admin email
+read -p "Enter your admin's gmail address: " admin_email
+echo "${appname}_ADMIN_EMAIL=\"$admin_email\"" | sudo tee -a /etc/environment
+
+
+# nodemailer
+echo "${appname}_NODEMAILER_EMAIL=\"$admin_email\"" | sudo tee -a /etc/environment
+
+
+# nodemailer app password
+read -p "Enter your gmail app password: " nodemailer_password
+echo "${appname}_NODEMAILER_PASSWORD=\"$nodemailer_password\"" | sudo tee -a /etc/environment
+
+
+# max server hd size
+read -p "Enter your server's max hard drive capacity in gigabytes [default: 30]: " hd_size
+hd_size=${hd_size:-30}
+echo "${appname}_MAX_HD_SIZE_GB=\"$hd_size\"" | sudo tee -a /etc/environment
+
+# app github repo
+read -p "Enter your application's github repo address: " repo_url
+# sanitize input
+repo_url=${repo_url#https://}
+repo_url=${repo_url#http://}
+repo_url=${repo_url#www.}
+echo "${appname}_REPO_URL=\"$repo_url\"" | sudo tee -a /etc/environment
+
+read -p "Enter your application's github repo private access token: " repo_pat
+echo "${appname}_REPO_PAT=\"$repo_pat\"" | sudo tee -a /etc/environment
+
+
+
+
+
 ################################################################ SERVER ################################################################
 echo
 echo
@@ -91,12 +170,6 @@ echo
 echo "installing PostgreSQL"
 sudo apt-get install -y postgresql postgresql-contrib
 
-# Prompt for new PostgreSQL user details
-echo
-read -p "Enter new PostgreSQL username: " dbusername
-read -s -p "Enter password for $dbusername: " dbpassword # should the password be randomly generated instead?
-read -p "Enter name for the new database: " dbname
-
 # Connect to PostgreSQL and execute SQL commands
 echo
 sudo -u postgres psql -c "CREATE DATABASE $dbname;"
@@ -105,8 +178,8 @@ sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $dbname TO $dbusernam
 
 echo "PostgreSQL database '$dbname' and user '$dbusername' with all privileges successfully created."
 
-read -p "Would you like to allow remote connections for $dbusername? on port 5432 (yes/no): " response
-if [[ "$response" == "yes" ]]; then
+# configure allow remote connections
+if [[ "$dballowremote" == "yes" ]]; then
 
     # Variable to store the found directory
     FOUND_DIR=""
@@ -150,60 +223,6 @@ fi
 
 
 
-################################################################ ENVIRONMENT VARIABLES ################################################################
-echo
-echo
-echo "################ ENVIRONMENT VARIABLE SETUP.. ################"
-
-LENGTH=64
-
-random_string=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c $LENGTH ; echo '')
-
-read -p "Enter your app name [default: APPNAME]: " appname
-appname=${appname:-"APPNAME"}
-appname="${appname^^}"             # cast to upper case
-
-
-# app server secret
-echo "${appname}_SERVER_SECRET=\"$random_string\"" | sudo tee -a /etc/environment
-
-# app database connection string DATABASE_URL=postgres://{user}:{password}@{hostname or localhost}:{port}/{database-name}
-echo "${appname}_DATABASE_URL=\"postgres://$dbusername:$dbpassword@localhost:5432/$dbname\"" | sudo tee -a /etc/environment
-
-# port
-read -p "Enter your app port [default: 3000]: " portnumber
-portnumber=${portnumber:-3000}
-echo "${appname}_PORT=\"$portnumber\"" | sudo tee -a /etc/environment
-
-# nodemailer
-read -p "Enter your app's nodemailer email address: " nodemailer_email
-echo "${appname}_NODEMAILER_EMAIL=\"$nodemailer_email\"" | sudo tee -a /etc/environment
-
-read -p "Enter your app's nodemailer email password: " nodemailer_password
-echo "${appname}_NODEMAILER_PASSWORD=\"$nodemailer_password\"" | sudo tee -a /etc/environment
-
-# admin email
-read -p "Enter your admin's email address: " admin_email
-echo "${appname}_ADMIN_EMAIL=\"$admin_email\"" | sudo tee -a /etc/environment
-
-# max server hd size
-read -p "Enter your server's max hard drive capacity in gigabytes [default: 30]: " hd_size
-hd_size=${hd_size:-30}
-echo "${appname}_MAX_HD_SIZE_GB=\"$hd_size\"" | sudo tee -a /etc/environment
-
-# app github repo
-read -p "Enter your application's github repo address: " repo_url
-# sanitize input
-repo_url=${repo_url#https://}
-repo_url=${repo_url#http://}
-repo_url=${repo_url#www.}
-echo "${appname}_REPO_URL=\"$repo_url\"" | sudo tee -a /etc/environment
-
-read -p "Enter your application's github repo private access token: " repo_pat
-echo "${appname}_REPO_PAT=\"$repo_pat\"" | sudo tee -a /etc/environment
-
-
-
 
 ################################################################ APP SETUP ################################################################
 echo
@@ -243,40 +262,27 @@ echo
 echo
 echo "################ NGINX & CERTBOT SETUP.. ################"
 
-read -p "Enter your domain name [default: mydomain.com]: " domain
-domain=${domain:-"mydomain.com"}
-domain=${domain#https://}
-domain=${domain#http://}
-domain=${domain#www.}
-
 # Install nginx
 echo
 echo "Installing nginx"
 sudo apt-get install -y nginx
 
-# install certbot
-echo
-echo "Installing certbot"
-sudo snap install certbot --classic
-
-# configure nginx for https with certbot
-echo
-echo "Obtaining SSL certificate for domain $domain..."
-sudo certbot --nginx -d $domain -d www.$domain
-
 # Configure Nginx to proxy requests to your Node.js application on port 3000
 echo "Configuring Nginx..."
-sudo tee "/etc/nginx/sites-available/default" > /dev/null <<EOF
-server {
-   listen 443 ssl;
-   server_name $domain www.$domain;
 
-   ssl_certificate /etc/letsencrypt/live/$domain/fullchain.pem;
-   ssl_certificate_key /etc/letsencrypt/live/$domain/privkey.pem;
+# Define variables
+NGINX_CONF_FILE="/etc/nginx/sites-available/default"
+DOMAIN="$domain www.$domain"
 
-   # SSL configuration
-   # Include SSL settings like protocols, ciphers, etc. as needed
+# Check if Nginx configuration file exists
+if [ ! -f "$NGINX_CONF_FILE" ]; then
+    echo "Nginx configuration file '$NGINX_CONF_FILE' not found."
+    exit 1
+fi
 
+# Define the new server_name and location block configuration
+NEW_SERVER_NAME="    server_name $DOMAIN;"
+NEW_LOCATION_BLOCK=$(cat <<EOF
    location / {
        proxy_pass http://localhost:$app_port;
        client_max_body_size 5G;
@@ -289,11 +295,44 @@ server {
        proxy_set_header Connection 'upgrade';
        proxy_cache_bypass \$http_upgrade;
    }
-
-   # Additional configurations can be added as needed
-}
-
 EOF
+)
+
+# Update server_name in the Nginx configuration file
+sudo sed -i "s/\(^\s*server_name\s*\).*/\1$DOMAIN;/" "$NGINX_CONF_FILE"
+
+# Update location / block within the server block in the Nginx configuration file
+# Find the start and end of the server block
+START_SERVER_BLOCK=$(sudo awk '/^\s*server\s*{/,/^\s*}/' "$NGINX_CONF_FILE" | head -n 1)
+END_SERVER_BLOCK=$(sudo awk '/^\s*server\s*{/,/^\s*}/' "$NGINX_CONF_FILE" | tail -n 1)
+
+# Check if both start and end of the server block are found
+if [[ -n "$START_SERVER_BLOCK" && -n "$END_SERVER_BLOCK" ]]; then
+    # Remove existing location / block within the server block
+    sudo sed -i "/$START_SERVER_BLOCK/,/$END_SERVER_BLOCK/{ /location \/ {/,/$END_SERVER_BLOCK/d; }" "$NGINX_CONF_FILE"
+    
+    # Add the new location block within the server block
+    sudo sed -i "/$START_SERVER_BLOCK/,/$END_SERVER_BLOCK/s/^/$NEW_LOCATION_BLOCK\n/" "$NGINX_CONF_FILE"
+else
+    echo "Error: Could not find the start or end of the server block in '$NGINX_CONF_FILE'."
+    # exit 1
+fi
+
+# Check NGINX config
+sudo nginx -t
+
+# Restart NGINX
+sudo service nginx restart
+
+# install certbot
+echo
+echo "Installing certbot"
+sudo snap install certbot --classic
+
+# configure nginx for https with certbot
+echo
+echo "Obtaining SSL certificate for domain $domain..."
+sudo certbot --nginx -d $domain -d www.$domain --agree-tos --email $admin_email -n
 
 # Test Nginx configuration and reload
 echo "Testing Nginx configuration..."
