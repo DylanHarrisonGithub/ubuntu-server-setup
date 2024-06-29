@@ -17,18 +17,14 @@ echo " * postgresql"
 echo " * certbot"
 echo
 echo "please have the following information prepared:"
-echo " * choose a database username"
-echo " * choose a database password"
-echo " * choose a database project"
-echo " * have a registered domain name"
-echo " * choose a name for your web app"
-echo " * choose a port for your web app"
-echo " * have a google email address for node mailer that is set up with 2 factor authentication"
-echo " * set up an app password for the nodemailer email and have it ready"
-echo " * an admin email address that will receive emails addressed to admin (can be same as node mailer email)"
+echo " * a name for your web app"
+echo " * a port for your web app"
+echo " * a registered domain name"
+echo " * a google gmail admin's email address with 2 factor authentication enabled"
+echo " * an app password for the gmail account"
 echo " * a maximum vps hard drive capacity in gigabytes"
-echo " * a github repo url for your node web application"
-echo " * a github private access token for the app if it is private"
+echo " * a github repository url for your node web application"
+echo " * a github private access token for the repository if it is private"
 echo
 read -p "Are you ready to proceed? (yes/no): " response
 if [[ "$response" != "yes" ]]; then
@@ -267,7 +263,7 @@ echo
 echo "Installing nginx"
 sudo apt-get install -y nginx
 
-# Configure Nginx to proxy requests to your Node.js application on port 3000
+# Configure Nginx to proxy requests to your Node.js application on app port
 echo "Configuring Nginx..."
 
 # Define variables
@@ -280,10 +276,17 @@ if [ ! -f "$NGINX_CONF_FILE" ]; then
     exit 1
 fi
 
-# Define the new server_name and location block configuration
-NEW_SERVER_NAME="    server_name $DOMAIN;"
-NEW_LOCATION_BLOCK=$(cat <<EOF
-   location / {
+nginx_default_config=$(cat << EOF
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+
+    root /var/www/html;
+    index index.html index.htm index.nginx-debian.html;
+
+    server_name $domain www.$domain;
+
+    location / {
        proxy_pass http://localhost:$app_port;
        client_max_body_size 5G;
        proxy_http_version 1.1;
@@ -294,35 +297,22 @@ NEW_LOCATION_BLOCK=$(cat <<EOF
        proxy_set_header Upgrade \$http_upgrade;
        proxy_set_header Connection 'upgrade';
        proxy_cache_bypass \$http_upgrade;
-   }
+    }
+}
 EOF
 )
 
-# Update server_name in the Nginx configuration file
-sudo sed -i "s/\(^\s*server_name\s*\).*/\1$DOMAIN;/" "$NGINX_CONF_FILE"
+# Overwrite nginx default configuration file
+sudo bash -c "echo '$nginx_default_config' > /etc/nginx/sites-available/default"
 
-# Update location / block within the server block in the Nginx configuration file
-# Find the start and end of the server block
-START_SERVER_BLOCK=$(sudo awk '/^\s*server\s*{/,/^\s*}/' "$NGINX_CONF_FILE" | head -n 1)
-END_SERVER_BLOCK=$(sudo awk '/^\s*server\s*{/,/^\s*}/' "$NGINX_CONF_FILE" | tail -n 1)
-
-# Check if both start and end of the server block are found
-if [[ -n "$START_SERVER_BLOCK" && -n "$END_SERVER_BLOCK" ]]; then
-    # Remove existing location / block within the server block
-    sudo sed -i "/$START_SERVER_BLOCK/,/$END_SERVER_BLOCK/{ /location \/ {/,/$END_SERVER_BLOCK/d; }" "$NGINX_CONF_FILE"
-    
-    # Add the new location block within the server block
-    sudo sed -i "/$START_SERVER_BLOCK/,/$END_SERVER_BLOCK/s/^/$NEW_LOCATION_BLOCK\n/" "$NGINX_CONF_FILE"
-else
-    echo "Error: Could not find the start or end of the server block in '$NGINX_CONF_FILE'."
-    # exit 1
-fi
+# Reload nginx configuration to apply changes
+sudo systemctl reload nginx
 
 # Check NGINX config
 sudo nginx -t
 
-# Restart NGINX
-sudo service nginx restart
+# # Restart NGINX
+# sudo service nginx restart
 
 # install certbot
 echo
