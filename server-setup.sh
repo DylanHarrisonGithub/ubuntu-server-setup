@@ -8,6 +8,7 @@ echo
 echo "################ INFO ################"
 echo "This script installs and configures packages needed to run a node/postgresql application on a fresh Ubuntu 20.x install"
 echo "Ensure that this script is run with sudo privileges sudo ./server-setup.sh"
+echo "Ensure that you have registered a domain name and created an A-sudorecord assosicating with the static ip of this server"
 echo
 echo "packages installed:"
 echo " * node & npm"
@@ -287,7 +288,7 @@ server {
     server_name $domain www.$domain;
 
     location / {
-       proxy_pass http://localhost:$app_port;
+       proxy_pass http://localhost:$portnumber;
        client_max_body_size 5G;
        proxy_http_version 1.1;
        proxy_set_header Host \$host;
