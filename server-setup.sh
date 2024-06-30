@@ -177,6 +177,21 @@ sudo -u postgres psql -c "CREATE DATABASE $dbname;"
 sudo -u postgres psql -c "CREATE USER $dbusername WITH PASSWORD '$dbpassword';"
 sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $dbname TO $dbusername;"
 
+
+# Retrieve PostgreSQL version
+postgres_version=$(psql -U postgres -tAc "SELECT current_setting('server_version_num');")
+
+# Compare PostgreSQL version
+if [ "$postgres_version" -ge 150000 ]; then
+    echo "PostgreSQL version is 15 or greater."
+    # Grant privileges using psql command
+    psql -U postgres -c "GRANT ALL ON SCHEMA public TO $dbusername;" $dbname
+else
+    echo "PostgreSQL version is less than 15."
+    # Handle for older versions if needed
+fi
+
+
 echo "PostgreSQL database '$dbname' and user '$dbusername' with all privileges successfully created."
 
 # configure allow remote connections
