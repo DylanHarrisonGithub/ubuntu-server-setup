@@ -20,7 +20,7 @@ echo
 echo "please have the following information prepared:"
 echo " * a name for your web app"
 echo " * a port for your web app"
-echo " * a registered domain name"
+echo " * a registered domain name with A Record for this server's i.p."
 echo " * a google gmail admin's email address with 2 factor authentication enabled"
 echo " * an app password for the gmail account"
 echo " * a maximum vps hard drive capacity in gigabytes"
@@ -167,6 +167,10 @@ echo
 echo "installing PostgreSQL"
 sudo apt-get install -y postgresql postgresql-contrib
 
+# ensure postgresql starts automatically at boot
+sudo systemctl enable postgresql
+
+
 # Connect to PostgreSQL and execute SQL commands
 echo
 sudo -u postgres psql -c "CREATE DATABASE $dbname;"
@@ -201,7 +205,7 @@ if [[ "$dballowremote" == "yes" ]]; then
 
         echo "Modifying pg_hba.conf..."
         # Append new rule to allow remote connection for $dbusername
-        echo "host    $database   $dbusername   0.0.0.0/0   md5" >> $pg_hba_conf
+        echo "host    $dbname   $dbusername   0.0.0.0/0   md5" >> $pg_hba_conf
 
         echo "Modifying postgresql.conf..."
         # Uncomment or set listen_addresses to '*' to listen on all addresses
