@@ -8,7 +8,7 @@ echo
 echo "################ INFO ################"
 echo "This script installs and configures packages needed to run a node/postgresql application on a fresh Ubuntu 20.x install"
 echo "Ensure that this script is run with sudo privileges sudo ./server-setup.sh"
-echo "Ensure that you have registered a domain name and created an A-sudorecord assosicating with the static ip of this server"
+echo "Ensure that you have registered a domain name and created an A-record assosicating with the static ip of this server"
 echo
 echo "packages installed:"
 echo " * node & npm"
@@ -327,7 +327,7 @@ sudo snap install certbot --classic
 # configure nginx for https with certbot
 echo
 echo "Obtaining SSL certificate for domain $domain..."
-sudo certbot --nginx -d $domain -d www.$domain --agree-tos --email $admin_email -n
+sudo certbot --nginx -d $domain -d www.$domain --agree-tos --register-unsafely-without-email -n
 
 # Test Nginx configuration and reload
 echo "Testing Nginx configuration..."
