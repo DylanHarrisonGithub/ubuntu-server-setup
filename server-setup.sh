@@ -41,76 +41,87 @@ echo
 echo
 echo "################ ENVIRONMENT VARIABLE SETUP.. ################"
 
-# app name
-read -p "Enter your app name [default: MYAPP]: " appname
-appname=${appname:-"MYAPP"}
-appname="${appname^^}"             # cast to upper case
+accept_params="no"
+while [ "$accept_params" != "yes" ]; do
+
+    read -p "Enter your app name [default: MYAPP]: " appname                                                                            # app name
+    appname=${appname:-"MYAPP"} 
+    appname="${appname^^}" # cast to upper case
+
+    read -p "Enter your app port [default: 3000]: " portnumber                                                                          # port
+    portnumber=${portnumber:-3000}
+
+    read -p 'Enter your app location [default: "/"]: ' applocation                                                                      # location
+    applocation=${applocation:-"/"}
+    applocation="/${applocation#/}" # add / character if doesnt already start with /
+
+    read -p "Enter your domain name [default: mydomain.com]: " domain                                                                   # domain
+    domain=${domain:-"mydomain.com"}
+    domain=${domain#https://}
+    domain=${domain#http://}
+    domain=${domain#www.}
+
+    LENGTH=64                                                                                                                           
+    random_string=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c $LENGTH ; echo '')                                                   # server secret
+
+    LENGTH_DB_PWD=16
+    dbpassword=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c $LENGTH_DB_PWD ; echo '')                                               # database password
+    dbname="${appname,,}db"                                                                                                             # db name
+    dbusername="${appname,,}"                                                                                                           # database username
+
+    read -p "Would you like to allow remote database connections on port 5432 (yes/no): " dballowremote                                 # db allow remote connections
+    [[ "$dballowremote" != "yes" ]] && dballowremote="no"
+
+    read -p "Enter your admin's gmail address: " admin_email                                                                            # admin email
+
+    read -p "Enter your gmail app password: " nodemailer_password                                                                       # gmail app password
+    nodemailer_password="${nodemailer_password// /}"    #remove spaces
+
+    read -p "Enter your server's max hard drive capacity in gigabytes [default: 30]: " hd_size                                          # server hd size in gigabytes
+    hd_size=${hd_size:-30}
+
+    read -p "Enter your application's github repo address: " repo_url                                                                   # github repository url
+    repo_url=${repo_url#https://}
+    repo_url=${repo_url#http://}
+    repo_url=${repo_url#www.}
+
+    read -p "Enter your application's github repo private access token: " repo_pat                                                      # github repository private access token
+
+    echo                                                                                                                                # review
+    echo "Please review your parameters before proceeding.."
+    echo 
+    echo "App name: $appname"
+    echo "Port: $portnumber"
+    echo "Location: $applocation"
+    echo "Domain: $domain"
+    echo "Server secret: $random_string"
+    echo "Database password: $dbpassword"
+    echo "Database name: $dbname"
+    echo "Database username: $dbusername"
+    echo "Allow remote database connections: $dballowremote"
+    echo "Admin gmail: $admin_email"
+    echo "Admin gmail app password: $nodemailer_password"
+    echo "Server hd size in gigabytes: $hd_size"
+    echo "github repository url: $repo_url"
+    echo "github repository private access token: $repo_pat"
+
+    echo
+    read -p "Accept these parameters and proceed? (yes/no): " accept_params
+done
 
 
-# port
-read -p "Enter your app port [default: 3000]: " portnumber
-portnumber=${portnumber:-3000}
-echo "${appname}_PORT=\"$portnumber\"" | sudo tee -a /etc/environment
+echo
+echo "Writing environment variables.."
 
-
-# domain
-read -p "Enter your domain name [default: mydomain.com]: " domain
-domain=${domain:-"mydomain.com"}
-domain=${domain#https://}
-domain=${domain#http://}
-domain=${domain#www.}
-
-# app server secret
-LENGTH=64
-random_string=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c $LENGTH ; echo '')
-echo "${appname}_SERVER_SECRET=\"$random_string\"" | sudo tee -a /etc/environment
-
-
-# db dbname dbusername dbpassword
-LENGTH_DB_PWD=16
-dbpassword=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c $LENGTH_DB_PWD ; echo '')
-dbname="${appname,,}db"
-dbusername="${appname,,}"
-
-
-# db allow remote connections
-read -p "Would you like to allow remote database connections on port 5432 (yes/no): " dballowremote
-
-
-# app database connection string DATABASE_URL=postgres://{user}:{password}@{hostname or localhost}:{port}/{database-name}
-echo "${appname}_DATABASE_URL=\"postgres://$dbusername:$dbpassword@localhost:5432/$dbname\"" | sudo tee -a /etc/environment
-
-
-# admin email
-read -p "Enter your admin's gmail address: " admin_email
-echo "${appname}_ADMIN_EMAIL=\"$admin_email\"" | sudo tee -a /etc/environment
-
-
-# nodemailer
-echo "${appname}_NODEMAILER_EMAIL=\"$admin_email\"" | sudo tee -a /etc/environment
-
-
-# nodemailer app password
-read -p "Enter your gmail app password: " nodemailer_password
-echo "${appname}_NODEMAILER_PASSWORD=\"$nodemailer_password\"" | sudo tee -a /etc/environment
-
-
-# max server hd size
-read -p "Enter your server's max hard drive capacity in gigabytes [default: 30]: " hd_size
-hd_size=${hd_size:-30}
-echo "${appname}_MAX_HD_SIZE_GB=\"$hd_size\"" | sudo tee -a /etc/environment
-
-# app github repo
-read -p "Enter your application's github repo address: " repo_url
-# sanitize input
-repo_url=${repo_url#https://}
-repo_url=${repo_url#http://}
-repo_url=${repo_url#www.}
-echo "${appname}_REPO_URL=\"$repo_url\"" | sudo tee -a /etc/environment
-
-read -p "Enter your application's github repo private access token: " repo_pat
-echo "${appname}_REPO_PAT=\"$repo_pat\"" | sudo tee -a /etc/environment
-
+echo "${appname}_PORT=\"$portnumber\"" | sudo tee -a /etc/environment                                                                   # port
+echo "${appname}_SERVER_SECRET=\"$random_string\"" | sudo tee -a /etc/environment                                                       # server secret
+echo "${appname}_DATABASE_URL=\"postgres://$dbusername:$dbpassword@localhost:5432/$dbname\"" | sudo tee -a /etc/environment             # db connection string
+echo "${appname}_ADMIN_EMAIL=\"$admin_email\"" | sudo tee -a /etc/environment                                                           # admin gmail
+echo "${appname}_NODEMAILER_EMAIL=\"$admin_email\"" | sudo tee -a /etc/environment                                                      # nodemailer gmail (same)
+echo "${appname}_NODEMAILER_PASSWORD=\"$nodemailer_password\"" | sudo tee -a /etc/environment                                           # gmail app password
+echo "${appname}_MAX_HD_SIZE_GB=\"$hd_size\"" | sudo tee -a /etc/environment                                                            # hd size
+echo "${appname}_REPO_URL=\"$repo_url\"" | sudo tee -a /etc/environment                                                                 # github repo
+echo "${appname}_REPO_PAT=\"$repo_pat\"" | sudo tee -a /etc/environment                                                                 # repo private access token
 
 
 
@@ -173,21 +184,22 @@ sudo systemctl enable postgresql
 
 # Connect to PostgreSQL and execute SQL commands
 echo
-sudo -u postgres psql -c "CREATE DATABASE $dbname;"
+sudo -u postgres psql -c "CREATE DATABASE IF NOT EXISTS $dbname;"
 sudo -u postgres psql -c "CREATE USER $dbusername WITH PASSWORD '$dbpassword';"
 sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $dbname TO $dbusername;"
 
 
 # Retrieve PostgreSQL version
-postgres_version=$(psql -U postgres -tAc "SELECT current_setting('server_version_num');")
+postgres_version=$(psql --version | awk '{print $3}')
 
 # Compare PostgreSQL version
-if [ "$postgres_version" -ge 150000 ]; then
+if [ "$postgres_version" -ge 15 ]; then
     echo "PostgreSQL version is 15 or greater."
-    # Grant privileges using psql command
+    echo "Grant all privileges on SCHEMA public required."
     psql -U postgres -c "GRANT ALL ON SCHEMA public TO $dbusername;" $dbname
 else
     echo "PostgreSQL version is less than 15."
+    echo "Grant all privileges on SCHEMA public not required."
     # Handle for older versions if needed
 fi
 
@@ -306,7 +318,7 @@ server {
 
     server_name $domain www.$domain;
 
-    location / {
+    location $applocation {
        proxy_pass http://localhost:$portnumber;
        client_max_body_size 5G;
        proxy_http_version 1.1;
