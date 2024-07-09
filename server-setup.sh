@@ -184,7 +184,7 @@ sudo systemctl enable postgresql
 
 # Connect to PostgreSQL and execute SQL commands
 echo
-sudo -u postgres psql -c "CREATE DATABASE IF NOT EXISTS $dbname;"
+sudo -u postgres psql -c "CREATE DATABASE $dbname;"
 sudo -u postgres psql -c "CREATE USER $dbusername WITH PASSWORD '$dbpassword';"
 sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $dbname TO $dbusername;"
 
@@ -261,7 +261,7 @@ if [ -n "$repo_url" ]; then
   if [ -n "$repo_pat" ]; then
     git clone "https://$repo_pat@$repo_url"
   else
-    git clone "$repo_url"
+    git clone "https://$repo_url"
   fi
 
   # Extract repository name from repo_url
