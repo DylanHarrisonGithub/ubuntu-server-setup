@@ -6,7 +6,7 @@
 echo
 echo
 echo "################ INFO ################"
-echo "This script installs and configures packages needed to run a node/postgresql application on a fresh Ubuntu 20.x install"
+echo "This script installs and configures packages needed to run a node/postgresql application on a fresh Ubuntu install."
 echo "Ensure that this script is run with sudo privileges sudo ./server-setup.sh"
 echo "Ensure that you have registered a domain name and created an A-record assosicating with the static ip of this server"
 echo
@@ -246,7 +246,6 @@ if [[ "$dballowremote" == "yes" ]]; then
         echo "PostgreSQL could not be configured to allow remote access"
     fi
 
-
 fi
 
 
@@ -305,19 +304,26 @@ DOMAIN="$domain www.$domain"
 # Check if Nginx configuration file exists
 if [ ! -f "$NGINX_CONF_FILE" ]; then
     echo "Nginx configuration file '$NGINX_CONF_FILE' not found."
-    exit 1
+    # exit 1
 fi
 
-nginx_default_config=$(cat << EOF
-server {
-    listen 80 default_server;
-    listen [::]:80 default_server;
+# create backup of original file
+echo "Creating backup /etc/nginx/sites-available/default.bak"
+sudo cp "$NGINX_CONF_FILE" "$NGINX_CONF_FILE.bak"
 
-    root /var/www/html;
-    index index.html index.htm index.nginx-debian.html;
+# overwrite existing server_name with $domain
+server_name_pattern="server_name"
+new_server_name="    server_name $domain www.$domain;"
+sed -i "/$server_name_pattern/c\\$new_server_name" "$NGINX_CONF_FILE"
 
-    server_name $domain www.$domain;
+# Escape special characters in applocation for sed
+escaped_applocation=$(sed 's/[^^]/[&]/g; s/\^/\\^/g' <<< "$applocation")
 
+# Use sed to delete any location blocks already defined for app location
+sudo sed -i "/location $escaped_applocation {/,/}/d" "$NGINX_CONF_FILE"
+
+# define new location block
+new_location_block=$(cat <<EOF
     location $applocation {
        proxy_pass http://localhost:$portnumber;
        client_max_body_size 5G;
@@ -330,12 +336,15 @@ server {
        proxy_set_header Connection 'upgrade';
        proxy_cache_bypass \$http_upgrade;
     }
-}
 EOF
 )
 
-# Overwrite nginx default configuration file
-sudo bash -c "echo '$nginx_default_config' > /etc/nginx/sites-available/default"
+# find line number under 'server_name mydomain.com www.mydomain.com;'
+location_block_line_number=$(grep -n 'server_name' "$NGINX_CONF_FILE" | head -n 1 | cut -d: -f1)
+location_block_line_number=$(( location_block_line_number + 1 ))
+
+# insert the new location block at the line number
+sed -i "${location_block_line_number}r /dev/stdin" "$NGINX_CONF_FILE" <<< "$new_location_block"
 
 # Reload nginx configuration to apply changes
 sudo systemctl reload nginx
