@@ -193,7 +193,7 @@ sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $dbname TO $dbusernam
 postgres_version=$(psql --version | awk '{print $3}')
 
 # Compare PostgreSQL version
-if [ "$postgres_version" -ge 15 ]; then
+if (( $(echo "$postgres_version > 15" | bc -l) )); then
     echo "PostgreSQL version is 15 or greater."
     echo "Grant all privileges on SCHEMA public required."
     psql -U postgres -c "GRANT ALL ON SCHEMA public TO $dbusername;" $dbname
