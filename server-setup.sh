@@ -312,7 +312,7 @@ echo "Creating backup /etc/nginx/sites-available/default.bak"
 sudo cp "$NGINX_CONF_FILE" "$NGINX_CONF_FILE.bak"
 
 # overwrite existing server_name with $domain
-server_name_pattern="server_name"
+server_name_pattern='^[^#]*server_name'
 new_server_name="    server_name $domain www.$domain;"
 sed -i "/$server_name_pattern/c\\$new_server_name" "$NGINX_CONF_FILE"
 
