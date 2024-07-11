@@ -196,8 +196,7 @@ postgres_version=$(psql --version | awk '{print $3}')
 if (( $(echo "$postgres_version > 15" | bc -l) )); then
     echo "PostgreSQL version is 15 or greater."
     echo "Grant all privileges on SCHEMA public required."
-    #sudo psql -U postgres -c "GRANT ALL ON SCHEMA public TO $dbusername;" $dbname
-    sudo -u postgres psql -d $dbname -c "GRANT ALL PRIVILEGES ON SCHEMA public TO $dbusername;"
+    sudo -u postgres psql -d "$dbname" -c "GRANT ALL PRIVILEGES ON SCHEMA public TO $dbusername;"
 else
     echo "PostgreSQL version is less than 15."
     echo "Grant all privileges on SCHEMA public not required."
