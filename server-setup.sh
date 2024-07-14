@@ -54,6 +54,7 @@ while [ "$accept_params" != "yes" ]; do
     read -p 'Enter your app location [default: "/"]: ' applocation                                                                      # location
     applocation=${applocation:-"/"}
     applocation="/${applocation#/}" # add / character if doesnt already start with /
+    applocation="${your_string%/}/" # add trailing / character if doesnt already end with /
 
     read -p "Enter your domain name [default: mydomain.com]: " domain                                                                   # domain
     domain=${domain:-"mydomain.com"}
@@ -325,7 +326,7 @@ sudo sed -i "/location $escaped_applocation {/,/}/d" "$NGINX_CONF_FILE"
 # define new location block
 new_location_block=$(cat <<EOF
     location $applocation {
-       proxy_pass http://localhost:$portnumber;
+       proxy_pass http://localhost:$portnumber/;
        client_max_body_size 5G;
        proxy_http_version 1.1;
        proxy_set_header Host \$host;
