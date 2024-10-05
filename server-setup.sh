@@ -2,6 +2,7 @@
 
 
 
+
 ################################################################ INFO ################################################################
 echo
 echo
@@ -87,6 +88,7 @@ while [ "$accept_params" != "yes" ]; do
     repo_url=${repo_url#www.}
 
     read -p "Enter your application's github repo private access token: " repo_pat                                                      # github repository private access token
+    read -p "Enter your application's github repo webhook secret: " repo_secret
 
     echo                                                                                                                                # review
     echo "Please review your parameters before proceeding.."
@@ -105,6 +107,7 @@ while [ "$accept_params" != "yes" ]; do
     echo "Server hd size in gigabytes: $hd_size"
     echo "github repository url: $repo_url"
     echo "github repository private access token: $repo_pat"
+    echo "github repository webhook secret: $repo_secret"
 
     echo
     read -p "Accept these parameters and proceed? (yes/no): " accept_params
@@ -123,6 +126,7 @@ echo "${appname}_NODEMAILER_PASSWORD=\"$nodemailer_password\"" | sudo tee -a /et
 echo "${appname}_MAX_HD_SIZE_GB=\"$hd_size\"" | sudo tee -a /etc/environment                                                            # hd size
 echo "${appname}_REPO_URL=\"$repo_url\"" | sudo tee -a /etc/environment                                                                 # github repo
 echo "${appname}_REPO_PAT=\"$repo_pat\"" | sudo tee -a /etc/environment                                                                 # repo private access token
+echo "${appname}_REPO_SECRET=\"$repo_secret\"" | sudo tee -a /etc/environment                                                           # repo webhook secret
 
 
 
