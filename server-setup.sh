@@ -57,6 +57,10 @@ while [ "$accept_params" != "yes" ]; do
     applocation="/${applocation#/}" # add / character if doesnt already start with /
     applocation="${your_string%/}/" # add trailing / character if doesnt already end with /
 
+    read -p "Should this script configure nginx and certbot with a new domain name? [default: yes]: " configure_nginx_certbot           # type no if your server already
+    configure_nginx_certbot=${configure_nginx_certbot:-"yes"}                                                                           # has nginx and certbot setup for
+    [[ "$configure_nginx_certbot" != "yes" ]] && configure_nginx_certbot="no"                                                           # your domain name
+
     read -p "Enter your domain name [default: mydomain.com]: " domain                                                                   # domain
     domain=${domain:-"mydomain.com"}
     domain=${domain#https://}
@@ -71,7 +75,7 @@ while [ "$accept_params" != "yes" ]; do
     dbname="${appname,,}db"                                                                                                             # db name
     dbusername="${appname,,}"                                                                                                           # database username
 
-    read -p "Would you like to allow remote database connections on port 5432 (yes/no): " dballowremote                                 # db allow remote connections
+    read -p "Would you like to allow remote database connections on port 5432? (yes/no): " dballowremote                                 # db allow remote connections
     [[ "$dballowremote" != "yes" ]] && dballowremote="no"
 
     read -p "Enter your admin's gmail address: " admin_email                                                                            # admin email
@@ -87,8 +91,11 @@ while [ "$accept_params" != "yes" ]; do
     repo_url=${repo_url#http://}
     repo_url=${repo_url#www.}
 
+    read -p "Enter the repository branch [default: main]: " repo_branch                                                                 # repo branch
+    repo_branch=${repo_branch:-main}
+
     read -p "Enter your application's github repo private access token: " repo_pat                                                      # github repository private access token
-    read -p "Enter your application's github repo webhook secret: " repo_secret
+    read -p "Enter your application's github repo webhook secret: " _REPO_SECRET                                                        # github update webhook secret
 
     echo                                                                                                                                # review
     echo "Please review your parameters before proceeding.."
@@ -96,6 +103,7 @@ while [ "$accept_params" != "yes" ]; do
     echo "App name: $appname"
     echo "Port: $portnumber"
     echo "Location: $applocation"
+    echo "Configure nginx and certbot for new domain: $configure_nginx_certbot"
     echo "Domain: $domain"
     echo "Server secret: $random_string"
     echo "Database password: $dbpassword"
@@ -105,9 +113,10 @@ while [ "$accept_params" != "yes" ]; do
     echo "Admin gmail: $admin_email"
     echo "Admin gmail app password: $nodemailer_password"
     echo "Server hd size in gigabytes: $hd_size"
-    echo "github repository url: $repo_url"
-    echo "github repository private access token: $repo_pat"
-    echo "github repository webhook secret: $repo_secret"
+    echo "Github repository url: $repo_url"
+    echo "Github repository branch: $repo_branch"
+    echo "Github repository private access token: $repo_pat"
+    echo "Github repository webhook secret: $repo_secret"
 
     echo
     read -p "Accept these parameters and proceed? (yes/no): " accept_params
@@ -125,6 +134,7 @@ echo "${appname}_NODEMAILER_EMAIL=\"$admin_email\"" | sudo tee -a /etc/environme
 echo "${appname}_NODEMAILER_PASSWORD=\"$nodemailer_password\"" | sudo tee -a /etc/environment                                           # gmail app password
 echo "${appname}_MAX_HD_SIZE_GB=\"$hd_size\"" | sudo tee -a /etc/environment                                                            # hd size
 echo "${appname}_REPO_URL=\"$repo_url\"" | sudo tee -a /etc/environment                                                                 # github repo
+echo "${appname}_REPO_BRANCH=\"$repo_branch\"" | sudo tee -a /etc/environment                                                           # github branch
 echo "${appname}_REPO_PAT=\"$repo_pat\"" | sudo tee -a /etc/environment                                                                 # repo private access token
 echo "${appname}_REPO_SECRET=\"$repo_secret\"" | sudo tee -a /etc/environment                                                           # repo webhook secret
 
@@ -264,9 +274,9 @@ echo "################ APP SETUP.. ################"
 if [ -n "$repo_url" ]; then
 
   if [ -n "$repo_pat" ]; then
-    git clone "https://$repo_pat@$repo_url"
+    git clone -b "$repo_branch" --single-branch "https://$repo_pat@$repo_url"
   else
-    git clone "https://$repo_url"
+    git clone -b "$repo_branch" --single-branch "https://$repo_url"
   fi
 
   # Extract repository name from repo_url
@@ -316,10 +326,12 @@ fi
 echo "Creating backup /etc/nginx/sites-available/default.bak"
 sudo cp "$NGINX_CONF_FILE" "$NGINX_CONF_FILE.bak"
 
-# overwrite existing server_name with $domain
-server_name_pattern='^[^#]*server_name'
-new_server_name="    server_name $domain www.$domain;"
-sed -i "/$server_name_pattern/c\\$new_server_name" "$NGINX_CONF_FILE"
+if [ "$configure_nginx_certbot" = "yes" ]; then
+    # overwrite existing server_name with $domain
+    server_name_pattern='^[^#]*server_name'
+    new_server_name="    server_name $domain www.$domain;"
+    sed -i "/$server_name_pattern/c\\$new_server_name" "$NGINX_CONF_FILE"
+fi
 
 # Escape special characters in applocation for sed
 escaped_applocation=$(sed 's/[^^]/[&]/g; s/\^/\\^/g' <<< "$applocation")
@@ -357,36 +369,34 @@ sudo systemctl reload nginx
 # Check NGINX config
 sudo nginx -t
 
-# # Restart NGINX
-# sudo service nginx restart
+if [ "$configure_nginx_certbot" = "yes" ]; then
+    # install certbot
+    echo
+    echo "Installing certbot"
+    sudo snap install certbot --classic
 
-# install certbot
-echo
-echo "Installing certbot"
-sudo snap install certbot --classic
+    # configure nginx for https with certbot
+    echo
+    echo "Obtaining SSL certificate for domain $domain..."
+    sudo certbot --nginx -d $domain -d www.$domain --agree-tos --register-unsafely-without-email -n
 
-# configure nginx for https with certbot
-echo
-echo "Obtaining SSL certificate for domain $domain..."
-sudo certbot --nginx -d $domain -d www.$domain --agree-tos --register-unsafely-without-email -n
+    # Test Nginx configuration and reload
+    echo "Testing Nginx configuration..."
+    sudo nginx -t
 
-# Test Nginx configuration and reload
-echo "Testing Nginx configuration..."
-sudo nginx -t
+    if [ $? -eq 0 ]; then
+        echo "Reloading Nginx..."
+        sudo systemctl reload nginx
+        echo "Nginx configuration updated successfully."
+    else
+        echo "Error: Nginx configuration test failed. Please check configuration."
+    fi
 
-if [ $? -eq 0 ]; then
-    echo "Reloading Nginx..."
-    sudo systemctl reload nginx
-    echo "Nginx configuration updated successfully."
-else
-    echo "Error: Nginx configuration test failed. Please check configuration."
+    # test certbot renewal
+    echo
+    echo "Testing certbot auto-renewal"
+    sudo certbot renew --dry-run
 fi
-
-# test certbot renewal
-echo
-echo "Testing certbot auto-renewal"
-sudo certbot renew --dry-run
-
 
 
 ################################################################ COMPLETE ################################################################
