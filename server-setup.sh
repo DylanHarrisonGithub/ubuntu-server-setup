@@ -55,7 +55,7 @@ while [ "$accept_params" != "yes" ]; do
     read -p 'Enter your app location [default: "/"]: ' applocation                                                                      # location
     applocation=${applocation:-"/"}
     applocation="/${applocation#/}" # add / character if doesnt already start with /
-    applocation="${your_string%/}/" # add trailing / character if doesnt already end with /
+    applocation="${applocation%/}/" # add trailing / character if doesnt already end with /
 
     read -p "Should this script configure nginx and certbot with a new domain name? [default: yes]: " configure_nginx_certbot           # type no if your server already
     configure_nginx_certbot=${configure_nginx_certbot:-"yes"}                                                                           # has nginx and certbot setup for
