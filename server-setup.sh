@@ -95,7 +95,7 @@ while [ "$accept_params" != "yes" ]; do
     repo_branch=${repo_branch:-main}
 
     read -p "Enter your application's github repo private access token: " repo_pat                                                      # github repository private access token
-    read -p "Enter your application's github repo webhook secret: " _REPO_SECRET                                                        # github update webhook secret
+    read -p "Enter your application's github repo webhook secret: " repo_secret                                                        # github update webhook secret
 
     echo                                                                                                                                # review
     echo "Please review your parameters before proceeding.."
