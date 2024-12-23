@@ -23,6 +23,7 @@ echo " * a name for your web app"
 echo " * a port for your web app"
 echo " * a registered domain name with A Record for this server's i.p."
 echo " * a google gmail admin's email address with 2 factor authentication enabled"
+echo " * a google api key for google cloud services"
 echo " * an app password for the gmail account"
 echo " * a maximum vps hard drive capacity in gigabytes"
 echo " * a github repository url for your node web application"
@@ -83,6 +84,8 @@ while [ "$accept_params" != "yes" ]; do
     read -p "Enter your gmail app password: " nodemailer_password                                                                       # gmail app password
     nodemailer_password="${nodemailer_password// /}"    #remove spaces
 
+    read -p "Enter your google api key: " google_api_key                                                                                # google api key
+
     read -p "Enter your server's max hard drive capacity in gigabytes [default: 30]: " hd_size                                          # server hd size in gigabytes
     hd_size=${hd_size:-30}
 
@@ -112,6 +115,7 @@ while [ "$accept_params" != "yes" ]; do
     echo "Allow remote database connections: $dballowremote"
     echo "Admin gmail: $admin_email"
     echo "Admin gmail app password: $nodemailer_password"
+    echo "Google API key: $google_api_key"
     echo "Server hd size in gigabytes: $hd_size"
     echo "Github repository url: $repo_url"
     echo "Github repository branch: $repo_branch"
@@ -132,6 +136,7 @@ echo "${appname}_DATABASE_URL=\"postgres://$dbusername:$dbpassword@localhost:543
 echo "${appname}_ADMIN_EMAIL=\"$admin_email\"" | sudo tee -a /etc/environment                                                           # admin gmail
 echo "${appname}_NODEMAILER_EMAIL=\"$admin_email\"" | sudo tee -a /etc/environment                                                      # nodemailer gmail (same)
 echo "${appname}_NODEMAILER_PASSWORD=\"$nodemailer_password\"" | sudo tee -a /etc/environment                                           # gmail app password
+echo "${appname}_GOOGLE_API_KEY=\"$google_api_key\"" | sudo tee -a /etc/environment                                                     # gmail app password
 echo "${appname}_MAX_HD_SIZE_GB=\"$hd_size\"" | sudo tee -a /etc/environment                                                            # hd size
 echo "${appname}_REPO_URL=\"$repo_url\"" | sudo tee -a /etc/environment                                                                 # github repo
 echo "${appname}_REPO_BRANCH=\"$repo_branch\"" | sudo tee -a /etc/environment                                                           # github branch
